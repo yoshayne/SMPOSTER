@@ -200,9 +200,14 @@ app.get("/data-deletion", (c) => c.html(`<!DOCTYPE html>
 // --- SPA fallback ---
 
 app.get("*", (c) => {
-  return c.html(
-    `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>SMPoster</title></head><body><div id="root"></div></body></html>`
-  );
+  try {
+    const { readFileSync } = require("fs");
+    const { join } = require("path");
+    const html = readFileSync(join(process.cwd(), "dist/client/index.html"), "utf-8");
+    return c.html(html);
+  } catch {
+    return c.html(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>SMPoster</title></head><body><div id="root"></div></body></html>`);
+  }
 });
 
 const port = Number(process.env.PORT) || 3000;
