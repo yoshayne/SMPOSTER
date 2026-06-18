@@ -134,6 +134,40 @@ app.get("/privacy", (c) => c.html(`<!DOCTYPE html>
 <p>Questions: <a href="mailto:creativedirectorshayne@gmail.com">creativedirectorshayne@gmail.com</a></p>
 </body></html>`));
 
+app.get("/terms", (c) => c.html(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Terms of Service — SMPoster</title><style>${LEGAL_STYLE}</style></head>
+<body>
+<h1>Terms of Service</h1>
+<p class="meta">Last updated: June 18, 2025</p>
+
+<p>SMPoster is a private, internal tool built and operated solely by Shayne ("the Operator") for personal social media scheduling and publishing. It is not available to the public and has no end-users other than the Operator.</p>
+
+<h2>Acceptance</h2>
+<p>By accessing or using SMPoster, you confirm that you are the Operator and that you agree to these terms. If you are not the Operator, you are not authorized to use this application.</p>
+
+<h2>Permitted use</h2>
+<p>SMPoster may be used only to schedule and publish content to social media accounts that the Operator owns or is expressly authorized to manage. Use of the application to publish content on behalf of accounts the Operator does not own or control is prohibited.</p>
+
+<h2>Third-party platforms</h2>
+<p>Use of SMPoster in connection with Facebook, Instagram, and TikTok is subject to those platforms' own terms of service. The Operator is responsible for ensuring that all content published through SMPoster complies with the applicable platform policies.</p>
+
+<h2>AI-generated content</h2>
+<p>SMPoster uses third-party AI services (Google Gemini, fal.ai) to generate images and video. The Operator is solely responsible for reviewing, approving, and publishing AI-generated content. The Operator must ensure generated content complies with all applicable laws and platform policies before publishing.</p>
+
+<h2>No warranties</h2>
+<p>SMPoster is provided as-is, without warranties of any kind. Uptime, availability, and accuracy of scheduling are not guaranteed.</p>
+
+<h2>Limitation of liability</h2>
+<p>To the maximum extent permitted by law, the developer of SMPoster shall not be liable for any loss of data, missed posts, API errors, platform policy violations, or other damages arising from use of the application.</p>
+
+<h2>Changes</h2>
+<p>These terms may be updated at any time. Continued use of the application constitutes acceptance of the updated terms.</p>
+
+<h2>Contact</h2>
+<p><a href="mailto:creativedirectorshayne@gmail.com">creativedirectorshayne@gmail.com</a></p>
+</body></html>`));
+
 app.get("/data-deletion", (c) => c.html(`<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Data Deletion — SMPoster</title><style>${LEGAL_STYLE}</style></head>
