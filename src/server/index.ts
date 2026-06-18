@@ -17,6 +17,8 @@ import postAssetsRouter from "./routes/postAssets";
 import publishRouter from "./routes/publish";
 import quickPostRouter from "./routes/quickPost";
 import { startWorker } from "./workers/generationWorker";
+import { startScheduler } from "./lib/scheduler";
+import archiveRouter from "./routes/archive";
 
 const app = new Hono();
 
@@ -63,6 +65,7 @@ app.route("/api", generationRouter);
 app.route("/api", postAssetsRouter);
 app.route("/api", publishRouter);
 app.route("/api", quickPostRouter);
+app.route("/api", archiveRouter);
 
 // --- Settings ---
 
@@ -97,6 +100,7 @@ runMigrations()
     console.log("Migrations complete");
     startWorker();
     console.log("Generation worker started");
+    startScheduler();
     console.log(`SMPoster listening on port ${port}`);
     serve({ fetch: app.fetch, port });
   })
