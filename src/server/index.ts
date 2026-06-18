@@ -12,6 +12,11 @@ import oauthRouter from "./routes/oauth";
 import kbRouter from "./routes/kb";
 import csvRouter from "./routes/csv";
 import postsRouter from "./routes/posts";
+import generationRouter from "./routes/generation";
+import postAssetsRouter from "./routes/postAssets";
+import publishRouter from "./routes/publish";
+import quickPostRouter from "./routes/quickPost";
+import { startWorker } from "./workers/generationWorker";
 
 const app = new Hono();
 
@@ -54,6 +59,10 @@ app.route("/api", oauthRouter);
 app.route("/api", kbRouter);
 app.route("/api", csvRouter);
 app.route("/api", postsRouter);
+app.route("/api", generationRouter);
+app.route("/api", postAssetsRouter);
+app.route("/api", publishRouter);
+app.route("/api", quickPostRouter);
 
 // --- Settings ---
 
@@ -86,6 +95,8 @@ const port = Number(process.env.PORT) || 3000;
 runMigrations()
   .then(() => {
     console.log("Migrations complete");
+    startWorker();
+    console.log("Generation worker started");
     console.log(`SMPoster listening on port ${port}`);
     serve({ fetch: app.fetch, port });
   })
