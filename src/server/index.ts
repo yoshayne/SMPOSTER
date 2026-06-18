@@ -10,6 +10,8 @@ import brandsRouter from "./routes/brands";
 import channelsRouter from "./routes/channels";
 import oauthRouter from "./routes/oauth";
 import kbRouter from "./routes/kb";
+import csvRouter from "./routes/csv";
+import postsRouter from "./routes/posts";
 
 const app = new Hono();
 
@@ -50,6 +52,8 @@ app.route("/api/brands", brandsRouter);
 app.route("/api", channelsRouter);
 app.route("/api", oauthRouter);
 app.route("/api", kbRouter);
+app.route("/api", csvRouter);
+app.route("/api", postsRouter);
 
 // --- Settings ---
 
