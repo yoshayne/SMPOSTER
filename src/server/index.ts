@@ -1,25 +1,17 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
-import { S3Client, HeadBucketCommand } from "@aws-sdk/client-s3";
+import { HeadBucketCommand } from "@aws-sdk/client-s3";
 import { db } from "./db";
 import { redis } from "./redis";
+import { s3 } from "./s3";
 import { runMigrations } from "./migrate";
 import brandsRouter from "./routes/brands";
 import channelsRouter from "./routes/channels";
 import oauthRouter from "./routes/oauth";
+import kbRouter from "./routes/kb";
 
 const app = new Hono();
-
-const s3 = new S3Client({
-  endpoint: process.env.BUCKET_ENDPOINT_URL,
-  region: process.env.BUCKET_REGION || "auto",
-  credentials: {
-    accessKeyId: process.env.BUCKET_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.BUCKET_SECRET_ACCESS_KEY!,
-  },
-  forcePathStyle: true,
-});
 
 // --- Static files BEFORE API routes ---
 
@@ -57,6 +49,7 @@ app.get("/api/health", async (c) => {
 app.route("/api/brands", brandsRouter);
 app.route("/api", channelsRouter);
 app.route("/api", oauthRouter);
+app.route("/api", kbRouter);
 
 // --- Settings ---
 
