@@ -19,6 +19,7 @@ import quickPostRouter from "./routes/quickPost";
 import { startWorker } from "./workers/generationWorker";
 import { startScheduler } from "./lib/scheduler";
 import archiveRouter from "./routes/archive";
+import { getCurrentSpend } from "./lib/budget";
 
 const app = new Hono();
 
@@ -71,7 +72,9 @@ app.route("/api", archiveRouter);
 
 app.get("/api/settings", async (c) => {
   const { rows } = await db.query("SELECT * FROM settings WHERE id=1");
-  return c.json(rows[0] ?? { id: 1, monthly_budget_cap: null, current_spend: 0, timezone: "America/New_York" });
+  const row = rows[0] ?? { id: 1, monthly_budget_cap: null, timezone: "America/New_York" };
+  const current_spend = await getCurrentSpend();
+  return c.json({ ...row, current_spend });
 });
 
 app.put("/api/settings", async (c) => {

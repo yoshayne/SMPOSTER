@@ -192,10 +192,26 @@ export default function Settings() {
       {/* BUDGET */}
       <section>
         <h3 style={{ margin: "0 0 12px", color: "#e5e5e5" }}>Budget</h3>
-        <div style={{ background: "#141414", border: "1px solid #222", borderRadius: 8, padding: 16, maxWidth: 400 }}>
-          <div style={{ marginBottom: 12, fontSize: 13, color: "#888" }}>
-            Current spend this period: <strong style={{ color: "#e5e5e5" }}>${Number(settings.current_spend).toFixed(2)}</strong>
+        <div style={{ background: "#141414", border: "1px solid #222", borderRadius: 8, padding: 16, maxWidth: 420 }}>
+          <div style={{ marginBottom: 4, display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+            <span style={{ color: "#888" }}>Spent this month</span>
+            <span style={{ color: "#e5e5e5" }}>
+              <strong>${Number(settings.current_spend).toFixed(2)}</strong>
+              {settings.monthly_budget_cap != null && (
+                <span style={{ color: "#555" }}> / ${Number(settings.monthly_budget_cap).toFixed(2)}</span>
+              )}
+            </span>
           </div>
+          {settings.monthly_budget_cap != null && (() => {
+            const pct = Math.min(100, (Number(settings.current_spend) / Number(settings.monthly_budget_cap)) * 100);
+            const color = pct >= 90 ? "#ef4444" : pct >= 70 ? "#f59e0b" : "#22c55e";
+            return (
+              <div style={{ height: 6, background: "#222", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.3s" }} />
+              </div>
+            );
+          })()}
+          {settings.monthly_budget_cap == null && <div style={{ marginBottom: 16 }} />}
           <label style={{ display: "block", fontSize: 13, color: "#aaa", marginBottom: 6 }}>Monthly budget cap ($)</label>
           <div style={{ display: "flex", gap: 8 }}>
             <input
@@ -207,6 +223,9 @@ export default function Settings() {
             />
             <button onClick={saveBudget} style={btnStyle("primary")}>Save</button>
           </div>
+          {settings.monthly_budget_cap == null && (
+            <p style={{ margin: "8px 0 0", fontSize: 12, color: "#555" }}>No cap set — generation is unlimited.</p>
+          )}
         </div>
       </section>
 
