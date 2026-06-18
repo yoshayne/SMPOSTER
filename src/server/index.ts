@@ -1,37 +1,25 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
-import { Pool } from "pg";
-import Redis from "ioredis";
-import { S3Client, HeadBucketCommand } from "@aws-sdk/client-s3";
-import path from "path";
+import { HeadBucketCommand } from "@aws-sdk/client-s3";
+import { db } from "./db";
+import { redis } from "./redis";
+import { s3 } from "./s3";
+import { runMigrations } from "./migrate";
+import brandsRouter from "./routes/brands";
+import channelsRouter from "./routes/channels";
+import oauthRouter from "./routes/oauth";
+import kbRouter from "./routes/kb";
+import csvRouter from "./routes/csv";
+import postsRouter from "./routes/posts";
 
 const app = new Hono();
-
-// --- Connections ---
-
-const db = new Pool({ connectionString: process.env.DATABASE_URL });
-
-const redis = new Redis(process.env.REDIS_URL!, { lazyConnect: true });
-redis.connect().catch(() => {});
-
-const s3 = new S3Client({
-  endpoint: process.env.BUCKET_ENDPOINT_URL,
-  region: process.env.BUCKET_REGION || "auto",
-  credentials: {
-    accessKeyId: process.env.BUCKET_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.BUCKET_SECRET_ACCESS_KEY!,
-  },
-  forcePathStyle: true,
-});
 
 // --- Static files BEFORE API routes ---
 
 app.use(
   "/*",
-  serveStatic({
-    root: path.join(__dirname, "../../dist/client"),
-  })
+  serveStatic({ root: "./dist/client" })
 );
 
 // --- API ---
@@ -58,6 +46,33 @@ app.get("/api/health", async (c) => {
   return c.json(status, status.ok ? 200 : 503);
 });
 
+// --- Routes ---
+
+app.route("/api/brands", brandsRouter);
+app.route("/api", channelsRouter);
+app.route("/api", oauthRouter);
+app.route("/api", kbRouter);
+app.route("/api", csvRouter);
+app.route("/api", postsRouter);
+
+// --- Settings ---
+
+app.get("/api/settings", async (c) => {
+  const { rows } = await db.query("SELECT * FROM settings WHERE id=1");
+  return c.json(rows[0] ?? { id: 1, monthly_budget_cap: null, current_spend: 0, timezone: "America/New_York" });
+});
+
+app.put("/api/settings", async (c) => {
+  const body = await c.req.json<{ monthly_budget_cap?: number }>();
+  const { rows } = await db.query(
+    `INSERT INTO settings (id, monthly_budget_cap) VALUES (1, $1)
+     ON CONFLICT (id) DO UPDATE SET monthly_budget_cap=EXCLUDED.monthly_budget_cap
+     RETURNING *`,
+    [body.monthly_budget_cap ?? null]
+  );
+  return c.json(rows[0]);
+});
+
 // --- SPA fallback ---
 
 app.get("*", (c) => {
@@ -67,5 +82,14 @@ app.get("*", (c) => {
 });
 
 const port = Number(process.env.PORT) || 3000;
-console.log(`SMPoster listening on port ${port}`);
-serve({ fetch: app.fetch, port });
+
+runMigrations()
+  .then(() => {
+    console.log("Migrations complete");
+    console.log(`SMPoster listening on port ${port}`);
+    serve({ fetch: app.fetch, port });
+  })
+  .catch((err) => {
+    console.error("Migration failed:", err);
+    process.exit(1);
+  });

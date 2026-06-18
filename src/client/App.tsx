@@ -1,85 +1,30 @@
-import { useEffect, useState } from "react";
-
-type Health = {
-  ok: boolean;
-  db: boolean;
-  redis: boolean;
-  bucket: boolean;
-};
-
-const dot = (on: boolean) => (
-  <span style={{ color: on ? "#22c55e" : "#ef4444", fontWeight: 700 }}>
-    {on ? "●" : "●"}
-  </span>
-);
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Layout from "./components/Layout";
+import HealthCheck from "./pages/HealthCheck";
+import Settings from "./pages/Settings";
+import Calendar from "./pages/Calendar";
+import Upload from "./pages/Upload";
+import Approval from "./pages/Approval";
+import QuickPost from "./pages/QuickPost";
+import KnowledgeBase from "./pages/KnowledgeBase";
+import Archive from "./pages/Archive";
 
 export default function App() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/health")
-      .then((r) => r.json())
-      .then(setHealth)
-      .catch(() => setError(true));
-  }, []);
-
   return (
-    <div
-      style={{
-        fontFamily: "monospace",
-        maxWidth: 480,
-        margin: "80px auto",
-        padding: "32px",
-        border: "1px solid #333",
-        borderRadius: 8,
-        background: "#0f0f0f",
-        color: "#e5e5e5",
-      }}
-    >
-      <h1 style={{ margin: "0 0 8px", fontSize: 22 }}>SMPoster</h1>
-      <p style={{ margin: "0 0 24px", color: "#888", fontSize: 13 }}>
-        M0 — scaffold health check
-      </p>
-
-      {error && <p style={{ color: "#ef4444" }}>Failed to reach /api/health</p>}
-
-      {!health && !error && <p style={{ color: "#888" }}>Checking…</p>}
-
-      {health && (
-        <table style={{ borderCollapse: "collapse", width: "100%" }}>
-          <tbody>
-            {(
-              [
-                ["Postgres", health.db],
-                ["Redis", health.redis],
-                ["Bucket (S3)", health.bucket],
-              ] as [string, boolean][]
-            ).map(([label, ok]) => (
-              <tr key={label}>
-                <td style={{ padding: "6px 0", color: "#aaa" }}>{label}</td>
-                <td style={{ padding: "6px 0" }}>
-                  {dot(ok)} {ok ? "connected" : "unreachable"}
-                </td>
-              </tr>
-            ))}
-            <tr>
-              <td
-                colSpan={2}
-                style={{
-                  borderTop: "1px solid #333",
-                  paddingTop: 12,
-                  marginTop: 8,
-                  color: health.ok ? "#22c55e" : "#ef4444",
-                  fontWeight: 700,
-                }}
-              >
-                {health.ok ? "✓ All systems go" : "✗ One or more services down"}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      )}
-    </div>
+    <BrowserRouter>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Navigate to="/calendar" replace />} />
+          <Route path="/calendar" element={<Calendar />} />
+          <Route path="/upload" element={<Upload />} />
+          <Route path="/approval" element={<Approval />} />
+          <Route path="/quick-post" element={<QuickPost />} />
+          <Route path="/knowledge-base" element={<KnowledgeBase />} />
+          <Route path="/archive" element={<Archive />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/health" element={<HealthCheck />} />
+        </Routes>
+      </Layout>
+    </BrowserRouter>
   );
 }
