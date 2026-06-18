@@ -114,58 +114,68 @@ oauth.get("/oauth/meta/pending", async (c) => {
 });
 
 oauth.post("/oauth/meta/connect", async (c) => {
-  const body = await c.req.json<{
-    key: string;
-    brand_id: number;
-    selections: Array<{ page_id: string; include_ig: boolean }>;
-  }>();
+  try {
+    const body = await c.req.json<{
+      key: string;
+      brand_id: number;
+      selections: Array<{ page_id: string; include_ig: boolean }>;
+    }>();
 
-  const raw = await redis.get(`oauth_pending:${body.key}`);
-  if (!raw) return c.json({ error: "Not found or expired" }, 404);
+    const raw = await redis.get(`oauth_pending:${body.key}`);
+    if (!raw) return c.json({ error: "Not found or expired" }, 404);
 
-  const data = JSON.parse(raw) as {
-    brand_id: string;
-    pages: Array<{
-      page_id: string;
-      page_name: string;
-      page_access_token: string;
-      ig_id?: string;
-      ig_username?: string;
-    }>;
-  };
+    const data = JSON.parse(raw) as {
+      brand_id: string;
+      pages: Array<{
+        page_id: string;
+        page_name: string;
+        page_access_token: string;
+        ig_id?: string;
+        ig_username?: string;
+      }>;
+    };
 
-  let connected = 0;
-  for (const sel of body.selections) {
-    const page = data.pages.find((p) => p.page_id === sel.page_id);
-    if (!page) continue;
+    if (!process.env.ENCRYPTION_KEY) {
+      console.error("ENCRYPTION_KEY env var is not set");
+      return c.json({ error: "Server misconfiguration: ENCRYPTION_KEY not set" }, 500);
+    }
 
-    const encToken = encrypt(page.page_access_token);
+    const brandId = body.brand_id || Number(data.brand_id);
 
-    // Upsert facebook channel
-    await db.query(
-      `INSERT INTO channels (brand_id, platform, external_id, access_token)
-       VALUES ($1, 'facebook', $2, $3)
-       ON CONFLICT (brand_id, platform, external_id)
-       DO UPDATE SET access_token=EXCLUDED.access_token, is_active=true`,
-      [body.brand_id, page.page_id, encToken]
-    );
-    connected++;
+    let connected = 0;
+    for (const sel of body.selections) {
+      const page = data.pages.find((p) => p.page_id === sel.page_id);
+      if (!page) continue;
 
-    // Upsert instagram channel if requested and linked
-    if (sel.include_ig && page.ig_id) {
+      const encToken = encrypt(page.page_access_token);
+
       await db.query(
         `INSERT INTO channels (brand_id, platform, external_id, access_token)
-         VALUES ($1, 'instagram', $2, $3)
+         VALUES ($1, 'facebook', $2, $3)
          ON CONFLICT (brand_id, platform, external_id)
          DO UPDATE SET access_token=EXCLUDED.access_token, is_active=true`,
-        [body.brand_id, page.ig_id, encToken]
+        [brandId, page.page_id, encToken]
       );
       connected++;
-    }
-  }
 
-  await redis.del(`oauth_pending:${body.key}`);
-  return c.json({ connected });
+      if (sel.include_ig && page.ig_id) {
+        await db.query(
+          `INSERT INTO channels (brand_id, platform, external_id, access_token)
+           VALUES ($1, 'instagram', $2, $3)
+           ON CONFLICT (brand_id, platform, external_id)
+           DO UPDATE SET access_token=EXCLUDED.access_token, is_active=true`,
+          [brandId, page.ig_id, encToken]
+        );
+        connected++;
+      }
+    }
+
+    await redis.del(`oauth_pending:${body.key}`);
+    return c.json({ connected });
+  } catch (err) {
+    console.error("oauth/meta/connect error:", err);
+    return c.json({ error: "Internal error", detail: String(err) }, 500);
+  }
 });
 
 export default oauth;
