@@ -1,31 +1,10 @@
 import { useEffect, useState } from "react";
 import PagePickerModal from "../components/PagePickerModal";
+import { t, btn, input } from "../theme";
 
 type Brand = { id: number; name: string; style_instructions: string; created_at: string };
 type Channel = { id: number; platform: string; external_id: string; is_active: boolean; token_expires_at: string | null };
 type Page = { page_id: string; page_name: string; ig_id?: string; ig_username?: string };
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  background: "#0f0f0f",
-  border: "1px solid #333",
-  borderRadius: 6,
-  color: "#e5e5e5",
-  fontSize: 14,
-  boxSizing: "border-box",
-};
-
-const btnStyle = (variant: "primary" | "ghost" | "danger" = "primary"): React.CSSProperties => ({
-  padding: "8px 14px",
-  borderRadius: 6,
-  border: variant === "ghost" ? "1px solid #333" : "none",
-  background: variant === "primary" ? "#22c55e" : variant === "danger" ? "#ef4444" : "transparent",
-  color: variant === "primary" ? "#000" : "#e5e5e5",
-  fontWeight: 600,
-  cursor: "pointer",
-  fontSize: 13,
-});
 
 export default function Settings() {
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -43,14 +22,11 @@ export default function Settings() {
     const res = await fetch("/api/brands");
     const data: Brand[] = await res.json();
     setBrands(data);
-
     const map: Record<number, Channel[]> = {};
-    await Promise.all(
-      data.map(async (b) => {
-        const r = await fetch(`/api/brands/${b.id}/channels`);
-        map[b.id] = await r.json();
-      })
-    );
+    await Promise.all(data.map(async (b) => {
+      const r = await fetch(`/api/brands/${b.id}/channels`);
+      map[b.id] = await r.json();
+    }));
     setChannelsMap(map);
   }
 
@@ -64,9 +40,7 @@ export default function Settings() {
   useEffect(() => {
     loadBrands();
     loadSettings();
-
     const params = new URLSearchParams(window.location.search);
-
     if (params.get("tiktok_connected")) {
       setFlash({ type: "success", msg: "TikTok account connected successfully." });
       history.replaceState(null, "", window.location.pathname);
@@ -75,12 +49,11 @@ export default function Settings() {
       setFlash({ type: "error", msg: `TikTok connection failed: ${params.get("tiktok_error")}` });
       history.replaceState(null, "", window.location.pathname);
     }
-
     const oauthKey = params.get("oauth_key");
     if (oauthKey) {
       fetch(`/api/oauth/meta/pending?key=${oauthKey}`)
-        .then((r) => r.json())
-        .then((data) => {
+        .then(r => r.json())
+        .then(data => {
           setPendingOAuth({ brandId: Number(data.brand_id), pages: data.pages, key: oauthKey });
           setShowPickerModal(true);
         })
@@ -88,31 +61,11 @@ export default function Settings() {
     }
   }, []);
 
-  function openNewBrand() {
-    setEditingBrand(null);
-    setBrandForm({ name: "", style_instructions: "" });
-    setShowBrandModal(true);
-  }
-
-  function openEditBrand(brand: Brand) {
-    setEditingBrand(brand);
-    setBrandForm({ name: brand.name, style_instructions: brand.style_instructions ?? "" });
-    setShowBrandModal(true);
-  }
-
   async function saveBrand() {
     if (editingBrand) {
-      await fetch(`/api/brands/${editingBrand.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(brandForm),
-      });
+      await fetch(`/api/brands/${editingBrand.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(brandForm) });
     } else {
-      await fetch("/api/brands", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(brandForm),
-      });
+      await fetch("/api/brands", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(brandForm) });
     }
     setShowBrandModal(false);
     loadBrands();
@@ -124,90 +77,64 @@ export default function Settings() {
     loadBrands();
   }
 
-  async function disconnectChannel(id: number) {
-    await fetch(`/api/channels/${id}`, { method: "DELETE" });
-    loadBrands();
-  }
-
   async function saveBudget() {
-    const cap = budgetInput ? Number(budgetInput) : null;
-    await fetch("/api/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ monthly_budget_cap: cap }),
-    });
+    await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ monthly_budget_cap: budgetInput ? Number(budgetInput) : null }) });
     loadSettings();
   }
 
-  function handleOAuthConnected() {
-    setShowPickerModal(false);
-    setPendingOAuth(null);
-    history.replaceState(null, "", window.location.pathname);
-    loadBrands();
-  }
+  const pct = settings.monthly_budget_cap ? Math.min(100, (Number(settings.current_spend) / Number(settings.monthly_budget_cap)) * 100) : 0;
+  const barColor = pct >= 90 ? t.danger : pct >= 70 ? t.warning : t.success;
 
   return (
     <div>
-      <h2 style={{ margin: "0 0 28px", color: "#e5e5e5" }}>Settings</h2>
+      <h2 style={{ margin: "0 0 28px", fontSize: 22, fontWeight: 700, color: t.text }}>Settings</h2>
 
       {flash && (
-        <div style={{ marginBottom: 20, padding: "10px 16px", borderRadius: 6, background: flash.type === "success" ? "#14532d" : "#450a0a", border: `1px solid ${flash.type === "success" ? "#22c55e" : "#ef4444"}`, color: "#e5e5e5", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ marginBottom: 20, padding: "12px 16px", borderRadius: 8, background: flash.type === "success" ? t.successBg : t.dangerBg, border: `1px solid ${flash.type === "success" ? "#bbf7d0" : "#fecaca"}`, color: flash.type === "success" ? t.success : t.danger, fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>{flash.msg}</span>
-          <button onClick={() => setFlash(null)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 16 }}>×</button>
+          <button onClick={() => setFlash(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: t.muted }}>×</button>
         </div>
       )}
 
       {/* BRANDS */}
       <section style={{ marginBottom: 40 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <h3 style={{ margin: 0, color: "#e5e5e5" }}>Brands</h3>
-          <button onClick={openNewBrand} style={btnStyle("primary")}>+ New Brand</button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: t.text }}>Brands</h3>
+          <button onClick={() => { setEditingBrand(null); setBrandForm({ name: "", style_instructions: "" }); setShowBrandModal(true); }} style={btn.primary}>
+            + New Brand
+          </button>
         </div>
 
         {brands.length === 0 && (
-          <p style={{ color: "#555" }}>No brands yet. Create one to get started.</p>
+          <div style={{ background: "#fff", borderRadius: 10, border: `1px solid ${t.border}`, padding: 32, textAlign: "center", color: t.muted }}>
+            No brands yet. Create one to get started.
+          </div>
         )}
 
-        {brands.map((brand) => (
-          <div
-            key={brand.id}
-            style={{ background: "#141414", border: "1px solid #222", borderRadius: 8, padding: 16, marginBottom: 12 }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <span style={{ fontWeight: 700, fontSize: 15, flex: 1 }}>{brand.name}</span>
-              <button onClick={() => openEditBrand(brand)} style={btnStyle("ghost")}>Edit</button>
-              <button onClick={() => deleteBrand(brand.id)} style={btnStyle("danger")}>Delete</button>
+        {brands.map(brand => (
+          <div key={brand.id} style={{ background: "#fff", border: `1px solid ${t.border}`, borderRadius: 10, padding: 20, marginBottom: 12, boxShadow: t.shadow }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <span style={{ fontWeight: 700, fontSize: 15, flex: 1, color: t.text }}>{brand.name}</span>
+              <button onClick={() => { setEditingBrand(brand); setBrandForm({ name: brand.name, style_instructions: brand.style_instructions ?? "" }); setShowBrandModal(true); }} style={btn.ghost}>Edit</button>
+              <button onClick={() => deleteBrand(brand.id)} style={btn.danger}>Delete</button>
             </div>
 
-            {(channelsMap[brand.id] ?? []).length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                {(channelsMap[brand.id] ?? []).map((ch) => (
-                  <div key={ch.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 13 }}>
-                    <span style={{ color: ch.is_active ? "#22c55e" : "#555", fontSize: 10 }}>●</span>
-                    <span style={{ color: "#aaa", textTransform: "capitalize" }}>{ch.platform}</span>
-                    <span style={{ color: "#555" }}>{ch.external_id}</span>
-                    <button
-                      onClick={() => disconnectChannel(ch.id)}
-                      style={{ marginLeft: "auto", padding: "2px 8px", background: "transparent", border: "1px solid #333", borderRadius: 4, color: "#888", cursor: "pointer", fontSize: 12 }}
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                ))}
+            {(channelsMap[brand.id] ?? []).map(ch => (
+              <div key={ch.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 13, borderBottom: `1px solid ${t.borderLight}` }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: ch.is_active ? t.success : t.border, flexShrink: 0, display: "inline-block" }} />
+                <span style={{ color: t.text, textTransform: "capitalize", fontWeight: 500, width: 90 }}>{ch.platform}</span>
+                <span style={{ color: t.muted, fontSize: 12, flex: 1 }}>{ch.external_id}</span>
+                <button onClick={async () => { await fetch(`/api/channels/${ch.id}`, { method: "DELETE" }); loadBrands(); }} style={{ padding: "3px 10px", background: "none", border: `1px solid ${t.border}`, borderRadius: 5, color: t.muted, cursor: "pointer", fontSize: 12 }}>
+                  Disconnect
+                </button>
               </div>
-            )}
+            ))}
 
-            <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-              <button
-                onClick={() => { window.location.href = `/api/oauth/meta/start?brand_id=${brand.id}`; }}
-                style={{ ...btnStyle("ghost"), fontSize: 12 }}
-              >
+            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+              <button onClick={() => { window.location.href = `/api/oauth/meta/start?brand_id=${brand.id}`; }} style={btn.ghost}>
                 + Connect Meta Page / IG
               </button>
-              <button
-                onClick={() => { window.location.href = `/api/oauth/tiktok/start?brand_id=${brand.id}`; }}
-                style={{ ...btnStyle("ghost"), fontSize: 12 }}
-              >
+              <button onClick={() => { window.location.href = `/api/oauth/tiktok/start?brand_id=${brand.id}`; }} style={btn.ghost}>
                 + Connect TikTok
               </button>
             </div>
@@ -217,83 +144,53 @@ export default function Settings() {
 
       {/* BUDGET */}
       <section>
-        <h3 style={{ margin: "0 0 12px", color: "#e5e5e5" }}>Budget</h3>
-        <div style={{ background: "#141414", border: "1px solid #222", borderRadius: 8, padding: 16, maxWidth: 420 }}>
-          <div style={{ marginBottom: 4, display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-            <span style={{ color: "#888" }}>Spent this month</span>
-            <span style={{ color: "#e5e5e5" }}>
-              <strong>${Number(settings.current_spend).toFixed(2)}</strong>
-              {settings.monthly_budget_cap != null && (
-                <span style={{ color: "#555" }}> / ${Number(settings.monthly_budget_cap).toFixed(2)}</span>
-              )}
+        <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600, color: t.text }}>Budget</h3>
+        <div style={{ background: "#fff", border: `1px solid ${t.border}`, borderRadius: 10, padding: 20, maxWidth: 440, boxShadow: t.shadow }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 8 }}>
+            <span style={{ color: t.muted }}>Spent this month</span>
+            <span style={{ fontWeight: 600, color: t.text }}>
+              ${Number(settings.current_spend).toFixed(2)}
+              {settings.monthly_budget_cap != null && <span style={{ color: t.muted, fontWeight: 400 }}> / ${Number(settings.monthly_budget_cap).toFixed(2)}</span>}
             </span>
           </div>
-          {settings.monthly_budget_cap != null && (() => {
-            const pct = Math.min(100, (Number(settings.current_spend) / Number(settings.monthly_budget_cap)) * 100);
-            const color = pct >= 90 ? "#ef4444" : pct >= 70 ? "#f59e0b" : "#22c55e";
-            return (
-              <div style={{ height: 6, background: "#222", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 3, transition: "width 0.3s" }} />
-              </div>
-            );
-          })()}
-          {settings.monthly_budget_cap == null && <div style={{ marginBottom: 16 }} />}
-          <label style={{ display: "block", fontSize: 13, color: "#aaa", marginBottom: 6 }}>Monthly budget cap ($)</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="number"
-              value={budgetInput}
-              onChange={(e) => setBudgetInput(e.target.value)}
-              placeholder="Unlimited"
-              style={{ ...inputStyle, width: 160 }}
-            />
-            <button onClick={saveBudget} style={btnStyle("primary")}>Save</button>
-          </div>
-          {settings.monthly_budget_cap == null && (
-            <p style={{ margin: "8px 0 0", fontSize: 12, color: "#555" }}>No cap set — generation is unlimited.</p>
+          {settings.monthly_budget_cap != null && (
+            <div style={{ height: 6, background: t.borderLight, borderRadius: 3, marginBottom: 20, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 3 }} />
+            </div>
           )}
+          <label style={{ display: "block", fontSize: 13, color: t.muted, marginBottom: 6 }}>Monthly budget cap ($)</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input type="number" value={budgetInput} onChange={e => setBudgetInput(e.target.value)} placeholder="Unlimited" style={{ ...input, width: 160 }} />
+            <button onClick={saveBudget} style={btn.primary}>Save</button>
+          </div>
+          {settings.monthly_budget_cap == null && <p style={{ margin: "8px 0 0", fontSize: 12, color: t.mutedLight }}>No cap set — generation is unlimited.</p>}
         </div>
       </section>
 
       {/* BRAND MODAL */}
       {showBrandModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-          <div style={{ background: "#141414", border: "1px solid #222", borderRadius: 10, padding: 28, width: 460, maxWidth: "90vw" }}>
-            <h3 style={{ margin: "0 0 20px", color: "#e5e5e5" }}>{editingBrand ? "Edit Brand" : "New Brand"}</h3>
-
-            <label style={{ display: "block", fontSize: 13, color: "#aaa", marginBottom: 6 }}>Name</label>
-            <input
-              value={brandForm.name}
-              onChange={(e) => setBrandForm((p) => ({ ...p, name: e.target.value }))}
-              style={{ ...inputStyle, marginBottom: 16 }}
-              placeholder="Brand name"
-            />
-
-            <label style={{ display: "block", fontSize: 13, color: "#aaa", marginBottom: 6 }}>Style Instructions</label>
-            <textarea
-              value={brandForm.style_instructions}
-              onChange={(e) => setBrandForm((p) => ({ ...p, style_instructions: e.target.value }))}
-              rows={5}
-              style={{ ...inputStyle, resize: "vertical", marginBottom: 20 }}
-              placeholder="Describe the brand's visual style, tone, color palette..."
-            />
-
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "#fff", borderRadius: 12, padding: 28, width: 480, maxWidth: "90vw", boxShadow: t.shadowMd }}>
+            <h3 style={{ margin: "0 0 20px", color: t.text }}>{editingBrand ? "Edit Brand" : "New Brand"}</h3>
+            <label style={{ display: "block", fontSize: 13, color: t.muted, marginBottom: 6 }}>Name</label>
+            <input value={brandForm.name} onChange={e => setBrandForm(p => ({ ...p, name: e.target.value }))} style={{ ...input, marginBottom: 16 }} placeholder="Brand name" />
+            <label style={{ display: "block", fontSize: 13, color: t.muted, marginBottom: 6 }}>Style Instructions</label>
+            <textarea value={brandForm.style_instructions} onChange={e => setBrandForm(p => ({ ...p, style_instructions: e.target.value }))} rows={5} style={{ ...input, resize: "vertical", marginBottom: 20 }} placeholder="Describe the brand's visual style, tone, color palette..." />
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button onClick={() => setShowBrandModal(false)} style={btnStyle("ghost")}>Cancel</button>
-              <button onClick={saveBrand} style={btnStyle("primary")}>Save</button>
+              <button onClick={() => setShowBrandModal(false)} style={btn.ghost}>Cancel</button>
+              <button onClick={saveBrand} style={btn.primary}>Save</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* PAGE PICKER MODAL */}
       {showPickerModal && pendingOAuth && (
         <PagePickerModal
           brandId={pendingOAuth.brandId}
           pages={pendingOAuth.pages}
           oauthKey={pendingOAuth.key}
           onClose={() => { setShowPickerModal(false); setPendingOAuth(null); history.replaceState(null, "", window.location.pathname); }}
-          onConnected={handleOAuthConnected}
+          onConnected={() => { setShowPickerModal(false); setPendingOAuth(null); history.replaceState(null, "", window.location.pathname); loadBrands(); }}
         />
       )}
     </div>

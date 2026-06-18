@@ -1,5 +1,6 @@
 import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { t, btn } from "../theme";
 
 type ImportResult = {
   imported: number;
@@ -17,11 +18,7 @@ export default function Upload() {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => { e.preventDefault(); setDragOver(true); };
   const handleDragLeave = () => setDragOver(false);
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -59,30 +56,14 @@ export default function Upload() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const dropZoneBorder = dragOver ? "#22c55e" : "#444";
-
   return (
-    <div style={{ padding: "32px", maxWidth: "600px", color: "#e5e7eb" }}>
-      <h1 style={{ fontSize: "22px", fontWeight: 600, marginBottom: "4px" }}>
-        Upload Posts via CSV
-      </h1>
-      <hr style={{ border: "none", borderTop: "1px solid #333", marginBottom: "24px" }} />
+    <div>
+      <h2 style={{ margin: "0 0 28px", fontSize: 22, fontWeight: 700, color: t.text }}>Upload Posts via CSV</h2>
 
       {state === "idle" || state === "uploading" ? (
         <>
-          <div style={{ marginBottom: "20px" }}>
-            <button
-              onClick={() => window.open("/api/csv/template")}
-              style={{
-                background: "#1f2937",
-                color: "#e5e7eb",
-                border: "1px solid #374151",
-                borderRadius: "6px",
-                padding: "8px 16px",
-                cursor: "pointer",
-                fontSize: "14px",
-              }}
-            >
+          <div style={{ marginBottom: 20 }}>
+            <button onClick={() => window.open("/api/csv/template")} style={btn.ghost}>
               Download Template
             </button>
           </div>
@@ -93,116 +74,66 @@ export default function Upload() {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             style={{
-              border: `2px dashed ${dropZoneBorder}`,
-              borderRadius: "8px",
+              border: `2px dashed ${dragOver ? t.accent : t.border}`,
+              borderRadius: 10,
               padding: "48px 24px",
               textAlign: "center",
               cursor: "pointer",
-              marginBottom: "20px",
-              background: "#1a1a1a",
-              transition: "border-color 0.2s",
+              marginBottom: 20,
+              background: dragOver ? t.accentLight : "#fff",
+              transition: "border-color 0.2s, background 0.2s",
+              maxWidth: 520,
             }}
           >
-            <div style={{ fontSize: "15px", color: "#9ca3af", marginBottom: "8px" }}>
-              Drop CSV file here
-            </div>
-            <div style={{ fontSize: "13px", color: "#6b7280" }}>or click to select</div>
+            <div style={{ fontSize: 32, marginBottom: 8, color: t.mutedLight }}>↑</div>
+            <div style={{ fontSize: 15, color: t.muted, marginBottom: 4 }}>Drop CSV file here</div>
+            <div style={{ fontSize: 13, color: t.mutedLight }}>or click to select</div>
             {file && (
-              <div style={{ marginTop: "12px", fontSize: "13px", color: "#22c55e" }}>
+              <div style={{ marginTop: 12, fontSize: 13, color: t.success, fontWeight: 600 }}>
                 {file.name}
               </div>
             )}
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            style={{ display: "none" }}
-            onChange={handleFileChange}
-          />
+          <input ref={fileInputRef} type="file" accept=".csv" style={{ display: "none" }} onChange={handleFileChange} />
 
           {state === "uploading" ? (
-            <div style={{ color: "#9ca3af", fontSize: "14px" }}>Importing...</div>
+            <div style={{ color: t.muted, fontSize: 14 }}>Importing...</div>
           ) : (
-            <button
-              onClick={handleUpload}
-              disabled={!file}
-              style={{
-                background: file ? "#22c55e" : "#374151",
-                color: file ? "#000" : "#6b7280",
-                border: "none",
-                borderRadius: "6px",
-                padding: "10px 20px",
-                cursor: file ? "pointer" : "not-allowed",
-                fontSize: "14px",
-                fontWeight: 600,
-              }}
-            >
+            <button onClick={handleUpload} disabled={!file} style={{ ...btn.primary, opacity: file ? 1 : 0.5, cursor: file ? "pointer" : "not-allowed" }}>
               Upload & Import
             </button>
           )}
         </>
       ) : (
         result && (
-          <>
-            <h2 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "16px" }}>
-              Import Complete
-            </h2>
-            <div style={{ marginBottom: "8px", fontSize: "15px" }}>
-              <span style={{ color: "#22c55e" }}>+</span> {result.imported} posts imported as drafts
+          <div style={{ background: "#fff", border: `1px solid ${t.border}`, borderRadius: 10, padding: 28, maxWidth: 520, boxShadow: t.shadow }}>
+            <h3 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 700, color: t.text }}>Import Complete</h3>
+            <div style={{ marginBottom: 8, fontSize: 15, color: t.success }}>
+              + {result.imported} posts imported as drafts
             </div>
             {result.skipped > 0 && (
-              <div style={{ marginBottom: "8px", fontSize: "15px", color: "#f59e0b" }}>
+              <div style={{ marginBottom: 8, fontSize: 15, color: t.warning }}>
                 ! {result.skipped} rows skipped
               </div>
             )}
             {result.errors.length > 0 && (
-              <div style={{ marginTop: "16px", marginBottom: "16px" }}>
-                <div style={{ fontSize: "14px", fontWeight: 600, marginBottom: "8px", color: "#f87171" }}>
-                  Errors:
-                </div>
+              <div style={{ marginTop: 16, marginBottom: 16, padding: "12px 16px", background: t.dangerBg, borderRadius: 8, border: `1px solid #fecaca` }}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: t.danger }}>Errors:</div>
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
                   {result.errors.map((e, i) => (
-                    <li key={i} style={{ fontSize: "13px", color: "#fca5a5", marginBottom: "4px" }}>
+                    <li key={i} style={{ fontSize: 13, color: t.danger, marginBottom: 4 }}>
                       {e.row > 0 ? `Row ${e.row}: ` : ""}{e.message}
                     </li>
                   ))}
                 </ul>
               </div>
             )}
-            <div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
-              <button
-                onClick={handleReset}
-                style={{
-                  background: "#1f2937",
-                  color: "#e5e7eb",
-                  border: "1px solid #374151",
-                  borderRadius: "6px",
-                  padding: "8px 16px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                }}
-              >
-                Upload Another
-              </button>
-              <button
-                onClick={() => navigate("/approval")}
-                style={{
-                  background: "#22c55e",
-                  color: "#000",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "8px 16px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                }}
-              >
-                Go to Approval
-              </button>
+            <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
+              <button onClick={handleReset} style={btn.ghost}>Upload Another</button>
+              <button onClick={() => navigate("/approval")} style={btn.primary}>Go to Approval</button>
             </div>
-          </>
+          </div>
         )
       )}
     </div>
