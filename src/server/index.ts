@@ -17,6 +17,7 @@ import postAssetsRouter from "./routes/postAssets";
 import publishRouter from "./routes/publish";
 import quickPostRouter from "./routes/quickPost";
 import { startWorker } from "./workers/generationWorker";
+import tiktokOauthRouter from "./routes/oauthTiktok";
 import { startScheduler } from "./lib/scheduler";
 import archiveRouter from "./routes/archive";
 import { getCurrentSpend } from "./lib/budget";
@@ -67,6 +68,7 @@ app.route("/api", postAssetsRouter);
 app.route("/api", publishRouter);
 app.route("/api", quickPostRouter);
 app.route("/api", archiveRouter);
+app.route("/api", tiktokOauthRouter);
 
 // --- Settings ---
 

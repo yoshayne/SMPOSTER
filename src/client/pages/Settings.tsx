@@ -37,6 +37,7 @@ export default function Settings() {
   const [pendingOAuth, setPendingOAuth] = useState<{ brandId: number; pages: Page[]; key: string } | null>(null);
   const [settings, setSettings] = useState<{ monthly_budget_cap: number | null; current_spend: number }>({ monthly_budget_cap: null, current_spend: 0 });
   const [budgetInput, setBudgetInput] = useState("");
+  const [flash, setFlash] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   async function loadBrands() {
     const res = await fetch("/api/brands");
@@ -65,6 +66,16 @@ export default function Settings() {
     loadSettings();
 
     const params = new URLSearchParams(window.location.search);
+
+    if (params.get("tiktok_connected")) {
+      setFlash({ type: "success", msg: "TikTok account connected successfully." });
+      history.replaceState(null, "", window.location.pathname);
+    }
+    if (params.get("tiktok_error")) {
+      setFlash({ type: "error", msg: `TikTok connection failed: ${params.get("tiktok_error")}` });
+      history.replaceState(null, "", window.location.pathname);
+    }
+
     const oauthKey = params.get("oauth_key");
     if (oauthKey) {
       fetch(`/api/oauth/meta/pending?key=${oauthKey}`)
@@ -139,6 +150,13 @@ export default function Settings() {
     <div>
       <h2 style={{ margin: "0 0 28px", color: "#e5e5e5" }}>Settings</h2>
 
+      {flash && (
+        <div style={{ marginBottom: 20, padding: "10px 16px", borderRadius: 6, background: flash.type === "success" ? "#14532d" : "#450a0a", border: `1px solid ${flash.type === "success" ? "#22c55e" : "#ef4444"}`, color: "#e5e5e5", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>{flash.msg}</span>
+          <button onClick={() => setFlash(null)} style={{ background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: 16 }}>×</button>
+        </div>
+      )}
+
       {/* BRANDS */}
       <section style={{ marginBottom: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
@@ -179,12 +197,20 @@ export default function Settings() {
               </div>
             )}
 
-            <button
-              onClick={() => { window.location.href = `/api/oauth/meta/start?brand_id=${brand.id}`; }}
-              style={{ ...btnStyle("ghost"), fontSize: 12, marginTop: 4 }}
-            >
-              + Connect Meta Page / IG
-            </button>
+            <div style={{ display: "flex", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+              <button
+                onClick={() => { window.location.href = `/api/oauth/meta/start?brand_id=${brand.id}`; }}
+                style={{ ...btnStyle("ghost"), fontSize: 12 }}
+              >
+                + Connect Meta Page / IG
+              </button>
+              <button
+                onClick={() => { window.location.href = `/api/oauth/tiktok/start?brand_id=${brand.id}`; }}
+                style={{ ...btnStyle("ghost"), fontSize: 12 }}
+              >
+                + Connect TikTok
+              </button>
+            </div>
           </div>
         ))}
       </section>

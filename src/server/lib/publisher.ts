@@ -117,6 +117,68 @@ async function publishToInstagram(
   return String(publishData.id ?? "");
 }
 
+const TIKTOK_API = "https://open.tiktokapis.com/v2";
+
+async function publishToTiktok(
+  openId: string,
+  accessToken: string,
+  assetUrl: string,
+  caption: string
+): Promise<string> {
+  // Initialize direct post
+  const initResp = await fetch(`${TIKTOK_API}/post/publish/video/init/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json; charset=UTF-8",
+    },
+    body: JSON.stringify({
+      post_info: {
+        title: caption.slice(0, 150),
+        privacy_level: "SELF_ONLY", // safe default; user can change in TikTok app
+        disable_duet: false,
+        disable_comment: false,
+        disable_stitch: false,
+      },
+      source_info: {
+        source: "PULL_FROM_URL",
+        video_url: assetUrl,
+      },
+    }),
+  });
+  const initData = (await initResp.json()) as {
+    data?: { publish_id?: string };
+    error?: { code?: string; message?: string };
+  };
+  if (!initResp.ok || initData.error?.code !== "ok") {
+    throw new Error(initData.error?.message ?? `TikTok init error ${initResp.status}`);
+  }
+  const publishId = initData.data?.publish_id!;
+
+  // Poll until PUBLISH_COMPLETE
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const statusResp = await fetch(`${TIKTOK_API}/post/publish/status/fetch/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json; charset=UTF-8",
+      },
+      body: JSON.stringify({ publish_id: publishId }),
+    });
+    const statusData = (await statusResp.json()) as {
+      data?: { status?: string; publicaly_available_post_id?: string[] };
+    };
+    const status = statusData.data?.status;
+    if (status === "PUBLISH_COMPLETE") {
+      return statusData.data?.publicaly_available_post_id?.[0] ?? publishId;
+    }
+    if (status === "FAILED") throw new Error("TikTok publish failed");
+  }
+  // Timed out but publish_id recorded
+  return publishId;
+}
+
 export async function publishPost(postId: number): Promise<void> {
   // Fetch post with assets and targets+channels
   const { rows: postRows } = await db.query(
@@ -159,8 +221,10 @@ export async function publishPost(postId: number): Promise<void> {
         asset = pickAsset("image") ?? pickAsset("reel") ?? pickAsset("story");
       } else if (platform === "instagram") {
         asset = pickAsset("reel") ?? pickAsset("story") ?? pickAsset("image");
+      } else if (platform === "tiktok") {
+        asset = pickAsset("reel") ?? pickAsset("story");
       } else {
-        throw new Error(`Platform ${platform} not supported in M5`);
+        throw new Error(`Unsupported platform: ${platform}`);
       }
 
       if (!asset?.storage_key) throw new Error("No approved asset available");
@@ -169,21 +233,11 @@ export async function publishPost(postId: number): Promise<void> {
       let externalPostId: string;
 
       if (platform === "facebook") {
-        externalPostId = await publishToFacebook(
-          externalId,
-          accessToken,
-          assetUrl,
-          caption,
-          asset.asset_type
-        );
+        externalPostId = await publishToFacebook(externalId, accessToken, assetUrl, caption, asset.asset_type);
+      } else if (platform === "instagram") {
+        externalPostId = await publishToInstagram(externalId, accessToken, assetUrl, caption, asset.asset_type);
       } else {
-        externalPostId = await publishToInstagram(
-          externalId,
-          accessToken,
-          assetUrl,
-          caption,
-          asset.asset_type
-        );
+        externalPostId = await publishToTiktok(externalId, accessToken, assetUrl, caption);
       }
 
       await db.query(
