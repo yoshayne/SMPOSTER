@@ -1,5 +1,7 @@
 import { Hono } from "hono";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "../db";
 import { s3 } from "../s3";
 
@@ -27,6 +29,54 @@ quickPostRouter.post("/quick-post/asset", async (c) => {
   );
 
   return c.json({ storage_key: storageKey });
+});
+
+// POST /api/quick-post/generate-image — generate image with Gemini and store in bucket
+quickPostRouter.post("/quick-post/generate-image", async (c) => {
+  const body = await c.req.json<{ copy: string; style_instructions?: string }>();
+  if (!body.copy) return c.json({ error: "copy is required" }, 400);
+  if (!process.env.GEMINI_API_KEY) return c.json({ error: "GEMINI_API_KEY not configured" }, 500);
+
+  const prompt = body.style_instructions
+    ? `${body.copy}\n\nStyle: ${body.style_instructions}`
+    : body.copy;
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
+
+  const result = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: { responseModalities: ["IMAGE", "TEXT"] } as any,
+  });
+
+  const imagePart = result.response.candidates?.[0]?.content?.parts?.find(
+    (p: any) => p.inlineData
+  );
+  if (!imagePart?.inlineData) return c.json({ error: "No image returned from Gemini" }, 500);
+
+  const buffer = Buffer.from(imagePart.inlineData.data, "base64");
+  const mimeType = imagePart.inlineData.mimeType ?? "image/png";
+  const ext = mimeType.includes("jpeg") ? "jpg" : "png";
+  const storageKey = `quick-post/generated-${Date.now()}.${ext}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: process.env.BUCKET_NAME!,
+      Key: storageKey,
+      Body: buffer,
+      ContentType: mimeType,
+    })
+  );
+
+  return c.json({ storage_key: storageKey, mime_type: mimeType });
+});
+
+// GET /api/quick-post/asset-url?key=... — presigned URL for preview
+quickPostRouter.get("/quick-post/asset-url", async (c) => {
+  const key = c.req.query("key");
+  if (!key) return c.json({ error: "key required" }, 400);
+  const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: process.env.BUCKET_NAME!, Key: key }), { expiresIn: 3600 });
+  return c.json({ url });
 });
 
 // POST /api/quick-post — create the post

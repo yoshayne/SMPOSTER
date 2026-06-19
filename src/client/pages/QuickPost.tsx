@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { t, btn, input as inputStyle } from "../theme";
 
-type Brand = { id: number; name: string };
+type Brand = { id: number; name: string; style_instructions?: string };
 type Channel = { id: number; platform: string; external_id: string };
 
 const labelStyle: React.CSSProperties = { display: "block", fontSize: 13, color: t.muted, marginBottom: 6, fontWeight: 500 };
@@ -16,6 +16,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+type AssetMode = "upload" | "generate";
+
 export default function QuickPost() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -28,14 +30,14 @@ export default function QuickPost() {
   const [captionIg, setCaptionIg] = useState("");
   const [scheduledDate, setScheduledDate] = useState(searchParams.get("date") ?? "");
   const [scheduledTime, setScheduledTime] = useState("12:00");
-  const [assetFile, setAssetFile] = useState<File | null>(null);
+  const [assetMode, setAssetMode] = useState<AssetMode>("upload");
   const [assetType, setAssetType] = useState("image");
   const [assetStorageKey, setAssetStorageKey] = useState<string | null>(null);
   const [assetPreviewUrl, setAssetPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dropRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -46,6 +48,15 @@ export default function QuickPost() {
     if (!brandId) { setChannels([]); setPlatforms(new Set()); return; }
     fetch(`/api/brands/${brandId}/channels`).then((r) => r.json()).then(setChannels).catch(() => setChannels([]));
   }, [brandId]);
+
+  // Reset asset when switching modes
+  function switchMode(mode: AssetMode) {
+    setAssetMode(mode);
+    setAssetStorageKey(null);
+    setAssetPreviewUrl(null);
+    setAssetType("image");
+    setError(null);
+  }
 
   async function uploadFile(file: File) {
     setUploading(true);
@@ -63,19 +74,52 @@ export default function QuickPost() {
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) { setAssetFile(file); uploadFile(file); }
+    if (file) uploadFile(file);
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
-    if (file) { setAssetFile(file); uploadFile(file); }
+    if (file) uploadFile(file);
+  }
+
+  async function handleGenerate() {
+    if (!copy.trim()) { setError("Write a caption first — it's used as the generation prompt"); return; }
+    setGenerating(true);
+    setError(null);
+    setAssetStorageKey(null);
+    setAssetPreviewUrl(null);
+
+    const brand = brands.find((b) => b.id === brandId);
+    const res = await fetch("/api/quick-post/generate-image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ copy, style_instructions: brand?.style_instructions ?? "" }),
+    });
+    setGenerating(false);
+
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error ?? "Generation failed");
+      return;
+    }
+
+    const { storage_key, mime_type } = await res.json();
+    setAssetStorageKey(storage_key);
+    setAssetType("image");
+
+    // Fetch a preview URL
+    const urlRes = await fetch(`/api/quick-post/asset-url?key=${encodeURIComponent(storage_key)}`);
+    if (urlRes.ok) {
+      const { url } = await urlRes.json();
+      setAssetPreviewUrl(url);
+    }
   }
 
   async function handleSubmit(status: "approved" | "draft") {
     setError(null);
     if (!brandId) return setError("Select a brand");
-    if (!assetStorageKey) return setError("Upload an asset first");
+    if (!assetStorageKey) return setError(assetMode === "generate" ? "Generate an image first" : "Upload an asset first");
     if (!copy.trim()) return setError("Caption is required");
     if (!scheduledDate) return setError("Scheduled date is required");
     if (platforms.size === 0) return setError("Select at least one platform");
@@ -95,6 +139,12 @@ export default function QuickPost() {
   const hasFb = channels.some((c) => c.platform === "facebook");
   const hasIg = channels.some((c) => c.platform === "instagram");
 
+  const tabStyle = (active: boolean): React.CSSProperties => ({
+    flex: 1, padding: "8px 0", border: "none", borderBottom: active ? `2px solid ${t.accent}` : `2px solid ${t.border}`,
+    background: "transparent", color: active ? t.accent : t.muted, fontWeight: active ? 700 : 500,
+    fontSize: 13, cursor: "pointer", transition: "color 0.15s",
+  });
+
   return (
     <div>
       <h2 style={{ margin: "0 0 28px", fontSize: 22, fontWeight: 700, color: t.text }}>Quick Post</h2>
@@ -107,47 +157,77 @@ export default function QuickPost() {
           </select>
         </Field>
 
-        <Field label="Asset (image or video)">
-          <div
-            ref={dropRef}
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-            style={{ border: `2px dashed ${t.border}`, borderRadius: 8, padding: 24, textAlign: "center", cursor: "pointer", background: t.bg, color: t.muted, fontSize: 13, minHeight: 80, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}
-          >
-            {uploading ? (
-              <span>Uploading...</span>
-            ) : assetPreviewUrl ? (
-              assetType === "image" ? (
-                <img src={assetPreviewUrl} style={{ maxHeight: 200, maxWidth: "100%", borderRadius: 6, objectFit: "contain" }} alt="preview" />
-              ) : (
-                <video src={assetPreviewUrl} controls style={{ maxHeight: 200, maxWidth: "100%", borderRadius: 6 }} />
-              )
-            ) : (
-              <>
-                <div style={{ fontSize: 28, color: t.mutedLight }}>↑</div>
-                <span>Drag and drop or click to upload</span>
-                <span style={{ fontSize: 11, color: t.mutedLight }}>Images and videos accepted</span>
-              </>
-            )}
-          </div>
-          <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleFileChange} style={{ display: "none" }} />
-          {assetPreviewUrl && (
-            <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
-              <span style={labelStyle}>Asset type:</span>
-              {["image", "reel", "story"].map((ty) => (
-                <label key={ty} style={{ fontSize: 13, color: t.text, display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
-                  <input type="radio" name="assetType" value={ty} checked={assetType === ty} onChange={() => setAssetType(ty)} style={{ accentColor: t.accent }} />
-                  {ty}
-                </label>
-              ))}
-            </div>
-          )}
-        </Field>
-
         <Field label="Caption">
           <textarea value={copy} onChange={(e) => setCopy(e.target.value)} rows={4} placeholder="Write your caption..." style={{ ...inputStyle, resize: "vertical" }} />
         </Field>
+
+        {/* Asset section with tabs */}
+        <div>
+          <div style={{ display: "flex", marginBottom: 12, borderBottom: `1px solid ${t.border}` }}>
+            <button style={tabStyle(assetMode === "upload")} onClick={() => switchMode("upload")}>Upload Asset</button>
+            <button style={tabStyle(assetMode === "generate")} onClick={() => switchMode("generate")}>Generate with AI</button>
+          </div>
+
+          {assetMode === "upload" ? (
+            <>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                style={{ border: `2px dashed ${t.border}`, borderRadius: 8, padding: 24, textAlign: "center", cursor: "pointer", background: t.bg, color: t.muted, fontSize: 13, minHeight: 80, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                {uploading ? (
+                  <span>Uploading...</span>
+                ) : assetPreviewUrl ? (
+                  assetType === "image" ? (
+                    <img src={assetPreviewUrl} style={{ maxHeight: 200, maxWidth: "100%", borderRadius: 6, objectFit: "contain" }} alt="preview" />
+                  ) : (
+                    <video src={assetPreviewUrl} controls style={{ maxHeight: 200, maxWidth: "100%", borderRadius: 6 }} />
+                  )
+                ) : (
+                  <>
+                    <div style={{ fontSize: 28, color: t.mutedLight }}>↑</div>
+                    <span>Drag and drop or click to upload</span>
+                    <span style={{ fontSize: 11, color: t.mutedLight }}>Images and videos accepted</span>
+                  </>
+                )}
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleFileChange} style={{ display: "none" }} />
+              {assetPreviewUrl && (
+                <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
+                  <span style={labelStyle}>Asset type:</span>
+                  {["image", "reel", "story"].map((ty) => (
+                    <label key={ty} style={{ fontSize: 13, color: t.text, display: "flex", gap: 4, alignItems: "center", cursor: "pointer" }}>
+                      <input type="radio" name="assetType" value={ty} checked={assetType === ty} onChange={() => setAssetType(ty)} style={{ accentColor: t.accent }} />
+                      {ty}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <p style={{ margin: 0, fontSize: 13, color: t.muted }}>
+                Gemini will generate an image based on your caption and this brand's style instructions.
+              </p>
+              <button
+                onClick={handleGenerate}
+                disabled={generating || !copy.trim() || !brandId}
+                style={{ ...btn.primary, opacity: generating || !copy.trim() || !brandId ? 0.5 : 1 }}
+              >
+                {generating ? "Generating..." : assetPreviewUrl ? "Regenerate" : "Generate Image"}
+              </button>
+              {generating && (
+                <div style={{ padding: "16px", background: t.accentLight, borderRadius: 8, fontSize: 13, color: t.accentText, textAlign: "center" }}>
+                  Generating image with Gemini... this takes ~10–20 seconds
+                </div>
+              )}
+              {assetPreviewUrl && !generating && (
+                <img src={assetPreviewUrl} style={{ width: "100%", maxHeight: 280, objectFit: "contain", borderRadius: 8, border: `1px solid ${t.border}` }} alt="generated" />
+              )}
+            </div>
+          )}
+        </div>
 
         {brandId !== "" && (
           <Field label="Platforms">
