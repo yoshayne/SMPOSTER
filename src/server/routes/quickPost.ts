@@ -4,6 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "../db";
 import { s3 } from "../s3";
+import { buildImagePrompt } from "../lib/imagePrompt";
 
 const quickPostRouter = new Hono();
 
@@ -38,19 +39,11 @@ quickPostRouter.post("/quick-post/generate-image", async (c) => {
   if (!process.env.GEMINI_API_KEY) return c.json({ error: "GEMINI_API_KEY not configured" }, 500);
 
   const onImageText = (body as any).on_image_text as string | undefined;
-  const prompt = onImageText
-    ? [
-        "Create a social media image.",
-        "CRITICAL SPELLING RULE: The following text must appear visually IN the image, spelled letter-for-letter exactly as written. Do not alter, rearrange, or invent any words.",
-        `Text to display in the image:\n${onImageText}`,
-        `Theme and mood (do NOT add extra text — only the text above):\n${body.copy}`,
-        body.style_instructions ? `\nStyle and visual direction:\n${body.style_instructions}` : "",
-      ].filter(Boolean).join("\n\n")
-    : [
-        "Create a social media image based on the theme and mood of this caption. Do NOT overlay any text on the image — pure visuals only.",
-        `Caption theme:\n${body.copy}`,
-        body.style_instructions ? `\nStyle and visual direction:\n${body.style_instructions}` : "",
-      ].filter(Boolean).join("\n\n");
+  const prompt = buildImagePrompt({
+    copy: body.copy,
+    onImageText: onImageText || null,
+    styleInstructions: body.style_instructions,
+  });
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
