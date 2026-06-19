@@ -68,7 +68,13 @@ async function processJob(job: Job<GenerationJob>): Promise<void> {
     [postAssetId]
   );
 
-  const prompt = `${copy}\n\nStyle: ${styleInstructions}`;
+  const prompt = [
+    "Create a social media image.",
+    "CRITICAL SPELLING RULE: Any text rendered visually in the image MUST be spelled letter-for-letter exactly as it appears below. Do not alter, rearrange, or invent any words.",
+    "",
+    `Caption text (copy exactly, character for character):\n${copy}`,
+    styleInstructions ? `\nStyle and visual direction:\n${styleInstructions}` : "",
+  ].filter(Boolean).join("\n");
 
   let buffer: Buffer;
   let ext: string;
