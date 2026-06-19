@@ -96,4 +96,8 @@ export const migrations: { name: string; sql: string }[] = [
     name: "002_asset_error_message",
     sql: `ALTER TABLE post_assets ADD COLUMN IF NOT EXISTS error_message text;`,
   },
+  {
+    name: "003_post_on_image_text",
+    sql: `ALTER TABLE posts ADD COLUMN IF NOT EXISTS on_image_text text;`,
+  },
 ];

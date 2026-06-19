@@ -4,6 +4,7 @@ import { DateTime } from "luxon";
 export type CsvRow = {
   brand: string;
   copy: string;
+  on_image_text: string | null;
   scheduled_at: Date;
   image: boolean;
   reel: boolean;
@@ -90,6 +91,7 @@ export async function parseCsv(buffer: Buffer): Promise<ParseResult> {
       pushError(`quality_tier must be cheap|standard|premium, got '${rawTier}'`);
     }
 
+    const on_image_text = (record["on_image_text"] ?? "").trim() || null;
     const caption_fb = (record["caption_fb"] ?? "").trim() || null;
     const caption_ig = (record["caption_ig"] ?? "").trim() || null;
     const caption_tiktok = (record["caption_tiktok"] ?? "").trim() || null;
@@ -99,6 +101,7 @@ export async function parseCsv(buffer: Buffer): Promise<ParseResult> {
     rows.push({
       brand,
       copy,
+      on_image_text,
       scheduled_at: scheduled_at!,
       image,
       reel,

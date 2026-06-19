@@ -6,8 +6,8 @@ const csvRouter = new Hono();
 
 csvRouter.get("/csv/template", (c) => {
   const csv = [
-    "brand,copy,scheduled_date,scheduled_time,image,reel,story,facebook,instagram,tiktok,quality_tier,caption_fb,caption_ig,caption_tiktok",
-    "My Brand,Example caption for this post,2025-01-15,14:30,TRUE,FALSE,FALSE,TRUE,TRUE,FALSE,standard,,,",
+    "brand,copy,on_image_text,scheduled_date,scheduled_time,image,reel,story,facebook,instagram,tiktok,quality_tier,caption_fb,caption_ig,caption_tiktok",
+    "My Brand,Example caption for this post,,2025-01-15,14:30,TRUE,FALSE,FALSE,TRUE,TRUE,FALSE,standard,,,",
   ].join("\n");
 
   c.header("Content-Type", "text/csv");
@@ -48,8 +48,8 @@ csvRouter.post("/csv/upload", async (c) => {
 
     // Insert post
     const postRes = await pool.query(
-      "INSERT INTO posts (brand_id, copy, scheduled_at, status, quality_tier, source) VALUES ($1,$2,$3,'draft',$4,'csv') RETURNING id",
-      [brandId, row.copy, row.scheduled_at, row.quality_tier]
+      "INSERT INTO posts (brand_id, copy, on_image_text, scheduled_at, status, quality_tier, source) VALUES ($1,$2,$3,$4,'draft',$5,'csv') RETURNING id",
+      [brandId, row.copy, row.on_image_text, row.scheduled_at, row.quality_tier]
     );
     const postId = postRes.rows[0].id;
 

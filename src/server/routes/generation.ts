@@ -43,6 +43,7 @@ async function enqueuePostGeneration(postId: number): Promise<number> {
       postId,
       assetType: asset.asset_type,
       copy: post.copy,
+      onImageText: post.on_image_text ?? null,
       styleInstructions: post.style_instructions ?? "",
       qualityTier: post.quality_tier ?? "standard",
     };
@@ -164,6 +165,7 @@ generationRouter.post("/posts/:id/regenerate-asset/:assetId", async (c) => {
     postId,
     assetType: assetRows[0].asset_type,
     copy: postRows[0].copy,
+    onImageText: postRows[0].on_image_text ?? null,
     styleInstructions: postRows[0].style_instructions ?? "",
     qualityTier: postRows[0].quality_tier ?? "standard",
   };

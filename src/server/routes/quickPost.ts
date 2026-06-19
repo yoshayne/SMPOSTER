@@ -37,13 +37,20 @@ quickPostRouter.post("/quick-post/generate-image", async (c) => {
   if (!body.copy) return c.json({ error: "copy is required" }, 400);
   if (!process.env.GEMINI_API_KEY) return c.json({ error: "GEMINI_API_KEY not configured" }, 500);
 
-  const prompt = [
-    "Create a social media image.",
-    "CRITICAL SPELLING RULE: Any text rendered visually in the image MUST be spelled letter-for-letter exactly as it appears below. Do not alter, rearrange, or invent any words.",
-    "",
-    `Caption text (copy exactly, character for character):\n${body.copy}`,
-    body.style_instructions ? `\nStyle and visual direction:\n${body.style_instructions}` : "",
-  ].filter(Boolean).join("\n");
+  const onImageText = (body as any).on_image_text as string | undefined;
+  const prompt = onImageText
+    ? [
+        "Create a social media image.",
+        "CRITICAL SPELLING RULE: The following text must appear visually IN the image, spelled letter-for-letter exactly as written. Do not alter, rearrange, or invent any words.",
+        `Text to display in the image:\n${onImageText}`,
+        `Theme and mood (do NOT add extra text — only the text above):\n${body.copy}`,
+        body.style_instructions ? `\nStyle and visual direction:\n${body.style_instructions}` : "",
+      ].filter(Boolean).join("\n\n")
+    : [
+        "Create a social media image based on the theme and mood of this caption. Do NOT overlay any text on the image — pure visuals only.",
+        `Caption theme:\n${body.copy}`,
+        body.style_instructions ? `\nStyle and visual direction:\n${body.style_instructions}` : "",
+      ].filter(Boolean).join("\n\n");
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
@@ -90,7 +97,8 @@ quickPostRouter.post("/quick-post", async (c) => {
     asset_storage_key: string;
     asset_type: string;
     copy: string;
-    scheduled_at: string; // ISO UTC string
+    on_image_text?: string;
+    scheduled_at: string;
     status?: string;
     caption_fb?: string;
     caption_ig?: string;
@@ -100,10 +108,10 @@ quickPostRouter.post("/quick-post", async (c) => {
   const status = body.status ?? "approved";
 
   const { rows: postRows } = await db.query(
-    `INSERT INTO posts (brand_id, copy, scheduled_at, status, quality_tier, source)
-     VALUES ($1, $2, $3, $4, 'standard', 'manual')
+    `INSERT INTO posts (brand_id, copy, on_image_text, scheduled_at, status, quality_tier, source)
+     VALUES ($1, $2, $3, $4, $5, 'standard', 'manual')
      RETURNING *`,
-    [body.brand_id, body.copy, body.scheduled_at, status]
+    [body.brand_id, body.copy, body.on_image_text ?? null, body.scheduled_at, status]
   );
   const post = postRows[0];
 

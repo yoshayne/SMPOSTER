@@ -11,6 +11,7 @@ export type GenerationJob = {
   postId: number;
   assetType: "image" | "reel" | "story";
   copy: string;
+  onImageText: string | null;
   styleInstructions: string;
   qualityTier: "cheap" | "standard" | "premium";
 };
@@ -60,7 +61,7 @@ async function generateVideo(
 }
 
 async function processJob(job: Job<GenerationJob>): Promise<void> {
-  const { postAssetId, postId, assetType, copy, styleInstructions, qualityTier } =
+  const { postAssetId, postId, assetType, copy, onImageText, styleInstructions, qualityTier } =
     job.data;
 
   await db.query(
@@ -68,13 +69,19 @@ async function processJob(job: Job<GenerationJob>): Promise<void> {
     [postAssetId]
   );
 
-  const prompt = [
-    "Create a social media image.",
-    "CRITICAL SPELLING RULE: Any text rendered visually in the image MUST be spelled letter-for-letter exactly as it appears below. Do not alter, rearrange, or invent any words.",
-    "",
-    `Caption text (copy exactly, character for character):\n${copy}`,
-    styleInstructions ? `\nStyle and visual direction:\n${styleInstructions}` : "",
-  ].filter(Boolean).join("\n");
+  const prompt = onImageText
+    ? [
+        "Create a social media image.",
+        "CRITICAL SPELLING RULE: The following text must appear visually IN the image, spelled letter-for-letter exactly as written. Do not alter, rearrange, or invent any words.",
+        `Text to display in the image:\n${onImageText}`,
+        `Theme and mood (do NOT add extra text — only the text above):\n${copy}`,
+        styleInstructions ? `\nStyle and visual direction:\n${styleInstructions}` : "",
+      ].filter(Boolean).join("\n\n")
+    : [
+        "Create a social media image based on the theme and mood of this caption. Do NOT overlay any text on the image — pure visuals only.",
+        `Caption theme:\n${copy}`,
+        styleInstructions ? `\nStyle and visual direction:\n${styleInstructions}` : "",
+      ].filter(Boolean).join("\n\n");
 
   let buffer: Buffer;
   let ext: string;

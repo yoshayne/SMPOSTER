@@ -26,6 +26,7 @@ export default function QuickPost() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [platforms, setPlatforms] = useState<Set<string>>(new Set());
   const [copy, setCopy] = useState("");
+  const [onImageText, setOnImageText] = useState("");
   const [captionFb, setCaptionFb] = useState("");
   const [captionIg, setCaptionIg] = useState("");
   const [scheduledDate, setScheduledDate] = useState(searchParams.get("date") ?? "");
@@ -94,7 +95,7 @@ export default function QuickPost() {
     const res = await fetch("/api/quick-post/generate-image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ copy, style_instructions: brand?.style_instructions ?? "" }),
+      body: JSON.stringify({ copy, on_image_text: onImageText || undefined, style_instructions: brand?.style_instructions ?? "" }),
     });
     setGenerating(false);
 
@@ -129,7 +130,7 @@ export default function QuickPost() {
     const res = await fetch("/api/quick-post", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ brand_id: Number(brandId), asset_storage_key: assetStorageKey, asset_type: assetType, copy, scheduled_at: scheduledAt, status, caption_fb: captionFb || undefined, caption_ig: captionIg || undefined, platforms: Array.from(platforms) }),
+      body: JSON.stringify({ brand_id: Number(brandId), asset_storage_key: assetStorageKey, asset_type: assetType, copy, on_image_text: onImageText || undefined, scheduled_at: scheduledAt, status, caption_fb: captionFb || undefined, caption_ig: captionIg || undefined, platforms: Array.from(platforms) }),
     });
     setSubmitting(false);
     if (!res.ok) { const data = await res.json(); setError(data.error ?? "Submit failed"); return; }
@@ -157,8 +158,13 @@ export default function QuickPost() {
           </select>
         </Field>
 
-        <Field label="Caption">
+        <Field label="Caption (social post text)">
           <textarea value={copy} onChange={(e) => setCopy(e.target.value)} rows={4} placeholder="Write your caption..." style={{ ...inputStyle, resize: "vertical" }} />
+        </Field>
+
+        <Field label="On-image text (optional — words to render inside the image)">
+          <textarea value={onImageText} onChange={(e) => setOnImageText(e.target.value)} rows={3} placeholder="Leave blank for a clean visual with no text overlay. Fill in to have specific words appear in the image." style={{ ...inputStyle, resize: "vertical" }} />
+          <span style={{ fontSize: 11, color: t.mutedLight, marginTop: 4 }}>When filled, this text (not the caption) is what Gemini renders visually in the image.</span>
         </Field>
 
         {/* Asset section with tabs */}
