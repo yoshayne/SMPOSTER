@@ -136,10 +136,11 @@ export function startWorker(): void {
       try {
         await processJob(job);
       } catch (err) {
-        console.error(`[generation worker] job ${job.id} failed:`, err);
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[generation worker] job ${job.id} failed:`, msg);
         await db.query(
-          "UPDATE post_assets SET generation_status='failed' WHERE id=$1",
-          [job.data.postAssetId]
+          "UPDATE post_assets SET generation_status='failed', error_message=$2 WHERE id=$1",
+          [job.data.postAssetId, msg]
         );
         await db.query(
           "UPDATE posts SET status='failed' WHERE id=$1 AND status='generating'",

@@ -92,4 +92,8 @@ export const migrations: { name: string; sql: string }[] = [
       INSERT INTO settings (id) VALUES (1) ON CONFLICT DO NOTHING;
     `,
   },
+  {
+    name: "002_asset_error_message",
+    sql: `ALTER TABLE post_assets ADD COLUMN IF NOT EXISTS error_message text;`,
+  },
 ];

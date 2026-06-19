@@ -7,6 +7,7 @@ type Asset = {
   generation_status: "pending" | "generating" | "ready" | "failed" | "approved" | "rejected";
   storage_key: string | null;
   cost: number | null;
+  error_message: string | null;
 };
 
 type Post = {
@@ -76,8 +77,9 @@ function AssetPreview({ asset, assetUrls, onLoadUrl }: { asset: Asset; assetUrls
   }
   if (asset.generation_status === "failed") {
     return (
-      <div style={{ width: "100%", height: 180, background: t.dangerBg, border: `1px solid #fecaca`, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: t.danger, fontSize: 13 }}>
-        Generation failed
+      <div style={{ width: "100%", minHeight: 80, background: t.dangerBg, border: `1px solid #fecaca`, borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: t.danger, fontSize: 13, padding: "12px 16px", gap: 6, textAlign: "center" }}>
+        <span style={{ fontWeight: 600 }}>Generation failed</span>
+        {asset.error_message && <span style={{ fontSize: 11, color: "#ef4444", opacity: 0.85, wordBreak: "break-word" }}>{asset.error_message}</span>}
       </div>
     );
   }

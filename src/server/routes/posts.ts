@@ -7,7 +7,7 @@ const POST_QUERY = `
   SELECT
     p.*,
     b.name as brand_name,
-    json_agg(DISTINCT jsonb_build_object('id',pa.id,'asset_type',pa.asset_type,'generation_status',pa.generation_status,'storage_key',pa.storage_key)) FILTER (WHERE pa.id IS NOT NULL) as assets,
+    json_agg(DISTINCT jsonb_build_object('id',pa.id,'asset_type',pa.asset_type,'generation_status',pa.generation_status,'storage_key',pa.storage_key,'cost',pa.cost,'error_message',pa.error_message)) FILTER (WHERE pa.id IS NOT NULL) as assets,
     json_agg(DISTINCT jsonb_build_object('id',pt.id,'channel_id',pt.channel_id,'status',pt.status,'caption_override',pt.caption_override)) FILTER (WHERE pt.id IS NOT NULL) as targets
   FROM posts p
   JOIN brands b ON b.id = p.brand_id
